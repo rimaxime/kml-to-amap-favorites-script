@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Ma carte</name>
+  <Folder>
+    <name>Pékin</name>
+    <Placemark>
+      <name>Tiananmen</name>
+      <description><![CDATA[Place centrale<br>Ouvert tous les jours]]></description>
+      <Point><coordinates>116.3912757,39.9075017,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>Café &amp; Thé</name>
+      <Point><coordinates>116.4074,39.9042,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>Itinéraire</name>
+      <LineString><coordinates>116.39,39.90,0 116.41,39.91,0</coordinates></LineString>
+    </Placemark>
+  </Folder>
+  <Folder>
+    <name>Paris</name>
+    <Placemark>
+      <name>Tour Eiffel</name>
+      <Point><coordinates>2.2945,48.8584,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>Tour Eiffel</name>
+      <Point><coordinates>2.2945,48.8584,0</coordinates></Point>
+    </Placemark>
+  </Folder>
+</Document>
+</kml>

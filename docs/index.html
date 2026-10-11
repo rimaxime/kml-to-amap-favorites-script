@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Maps → Amap</title>
+<style>
+  :root { --bg:#fafaf7; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#dedcd5; --accent:#1a6ef0; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161614; --fg:#ecebe6; --muted:#9b9a93; --card:#1f1f1c; --line:#33332f; --accent:#6aa0ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; } p.sub { color:var(--muted); margin:0 0 24px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+  h2 { font-size:1rem; margin:0 0 10px; }
+  #drop { border:2px dashed var(--line); border-radius:10px; padding:28px; text-align:center; color:var(--muted); cursor:pointer; }
+  #drop.over { border-color:var(--accent); color:var(--accent); }
+  label.layer { display:flex; gap:8px; align-items:center; padding:2px 0; }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  textarea { width:100%; height:130px; font:12px/1.4 ui-monospace,monospace; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  ol { padding-left:20px; margin:0; } li { margin:6px 0; }
+  code { background:var(--bg); padding:1px 5px; border-radius:4px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  #msg { color:var(--muted); font-size:.9rem; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>My Maps → favoris Amap</h1>
+  <p class="sub">Tout se passe dans ton navigateur : le fichier n'est envoyé nulle part.</p>
+
+  <section>
+    <h2>1. Ton export KML</h2>
+    <p style="margin:0 0 10px;color:var(--muted);font-size:.9rem">My Maps → ⋮ à côté du titre → <i>Exporter au format KML/KMZ</i> → coche « Exporter vers un fichier .KML ».</p>
+    <div id="drop">Dépose le fichier .kml ici ou clique pour le choisir</div>
+    <input id="file" type="file" accept=".kml,application/vnd.google-earth.kml+xml,text/xml" hidden>
+    <p id="msg"></p>
+  </section>
+
+  <section id="layersBox" hidden>
+    <h2>2. Couches à importer</h2>
+    <div id="layers"></div>
+    <div class="row"><button class="primary" id="gen">Générer le script</button></div>
+  </section>
+
+  <section id="outBox" hidden>
+    <h2>3. Script d'import</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="row">
+      <button class="primary" id="copy">Copier</button>
+      <button id="dl">Télécharger .js</button>
+    </div>
+    <ol>
+      <li>Ouvre <a href="https://ditu.amap.com/faves" target="_blank" rel="noopener">ditu.amap.com/faves</a> et connecte-toi.</li>
+      <li>Ouvre la console du navigateur (<code>F12</code>, ou <code>Ctrl/Cmd+Maj+J</code>).</li>
+      <li>Si le collage est bloqué, tape <code>allow pasting</code> puis Entrée.</li>
+      <li>Colle le script, Entrée, puis recharge la page.</li>
+    </ol>
+  </section>
+</main>
+
+<script type="module">
+import { parseKml, convertPlaces, buildConsoleScript } from "./core.js";
+const $ = (id) => document.getElementById(id);
+let places = [];
+
+async function load(file) {
+  const text = await file.text();
+  if (text.startsWith("PK")) { $("msg").textContent = "C'est un KMZ : réexporte en cochant « Exporter vers un fichier .KML »."; return; }
+  const parsed = parseKml(text);
+  places = parsed.places;
+  if (!places.length) { $("msg").textContent = "Aucun repère ponctuel trouvé dans ce fichier."; return; }
+  $("msg").textContent = `${places.length} repères trouvés` + (parsed.skipped.length ? ` (${parsed.skipped.length} lignes/polygones ignorés)` : "") + ".";
+  const counts = new Map();
+  for (const p of places) counts.set(p.layer, (counts.get(p.layer) || 0) + 1);
+  $("layers").replaceChildren(...[...counts].map(([layer, n]) => {
+    const l = document.createElement("label"); l.className = "layer";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.value = layer;
+    l.append(cb, `${layer || "(sans nom)"} — ${n}`);
+    return l;
+  }));
+  $("layersBox").hidden = false; $("outBox").hidden = true;
+}
+
+$("drop").onclick = () => $("file").click();
+$("file").onchange = (e) => e.target.files[0] && load(e.target.files[0]);
+$("drop").ondragover = (e) => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = (e) => { e.preventDefault(); $("drop").classList.remove("over"); e.dataTransfer.files[0] && load(e.dataTransfer.files[0]); };
+
+$("gen").onclick = () => {
+  const layers = [...$("layers").querySelectorAll("input:checked")].map((c) => c.value);
+  const { favorites, skipped } = convertPlaces(places, { layers: layers.length ? layers : ["\0none"] });
+  $("out").value = buildConsoleScript(favorites);
+  $("msg").textContent = `${favorites.length} favoris prêts` + (skipped.length ? ` (${skipped.length} doublons ignorés)` : "") + ".";
+  $("outBox").hidden = false;
+};
+$("copy").onclick = async () => { await navigator.clipboard.writeText($("out").value); $("copy").textContent = "Copié ✔"; setTimeout(() => ($("copy").textContent = "Copier"), 1500); };
+$("dl").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([$("out").value], { type: "text/javascript" }));
+  a.download = "amap_import_console.js"; a.click(); URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>

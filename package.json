@@ -1,0 +1,9 @@
+{
+  "name": "amap-kml-importer",
+  "version": "0.1.0",
+  "description": "Convertit un export KML de Google My Maps en script d'import pour les favoris Amap (Gaode)",
+  "type": "module",
+  "bin": { "kml-to-amap": "bin/kml-to-amap.js" },
+  "scripts": { "test": "node test/test.js" },
+  "engines": { "node": ">=18" }
+}
